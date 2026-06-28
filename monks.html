@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monks | BoonChai Amulet</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="store.css">
+</head>
+
+<body>
+    <header class="store-header monk-header">
+        <nav class="navbar" aria-label="Main navigation">
+            <a class="brand" href="index.html" aria-label="BoonChai home">
+                <img src="image/logo.png" alt="BoonChai logo">
+                <span>BoonChai</span>
+            </a>
+            <button class="menu-button" type="button" aria-label="Open menu" onclick="showMenu()">Menu</button>
+            <div class="navlinks" id="navlinks"></div>
+        </nav>
+
+        <section class="store-hero">
+            <p class="eyebrow">Monk Profiles</p>
+            <h1>Thai Monk Detail</h1>
+            <p>Read monk histories separately from amulet listings, then open each profile to see connected amulets.</p>
+        </section>
+    </header>
+
+    <main>
+        <section class="category-tabs" aria-label="Catalogue categories">
+            <a class="filter-chip" href="store.html">Amulets</a>
+            <a class="filter-chip is-active" href="monks.html">Monks</a>
+        </section>
+
+        <section class="catalogue-search" aria-label="Search catalogue">
+            <label for="catalogueSearch">Search all catalogue</label>
+            <input id="catalogueSearch" type="search" placeholder="Type amulet or monk name">
+            <div class="search-results" id="searchResults" aria-live="polite"></div>
+        </section>
+
+        <section class="product-grid" id="monkGrid" aria-label="Monk profiles"></section>
+    </main>
+
+    <footer class="footer">
+        <p>BoonChai Amulet</p>
+        <p>Monk category.</p>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
