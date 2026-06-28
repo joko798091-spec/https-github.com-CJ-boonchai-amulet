@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Admin | BoonChai Amulet</title>
+    <link rel="stylesheet" href="../index.css">
+    <link rel="stylesheet" href="../store.css">
+</head>
+
+<body>
+    <header class="store-header private-header">
+        <nav class="navbar" aria-label="Admin navigation">
+            <a class="brand" href="../index.html" aria-label="BoonChai home">
+                <img src="../image/logo.png" alt="BoonChai logo">
+                <span>BoonChai Admin</span>
+            </a>
+            <button class="menu-button" type="button" aria-label="Open menu" onclick="showMenu()">Menu</button>
+            <div class="navlinks" id="navlinks"></div>
+        </nav>
+
+        <section class="store-hero">
+            <p class="eyebrow">Private Admin</p>
+            <h1>Manage Catalogue Records</h1>
+            <p>Add future monk profiles and amulet listings, then export your records for backup or GitHub publishing.</p>
+        </section>
+    </header>
+
+    <main class="admin-shell" id="adminShell"></main>
+
+    <footer class="footer">
+        <p>BoonChai Amulet</p>
+        <p>Private static catalogue manager.</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+    <script src="../cloud-config.js"></script>
+    <script src="../data.js"></script>
+    <script src="../app.js"></script>
+</body>
+
+</html>
