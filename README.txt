@@ -13,7 +13,26 @@ Pages:
 Important:
 The public catalogue pages include a search bar for finding monks and amulets by name. Admin also includes a search bar for finding records before editing or deleting.
 
-GitHub Pages is static, so admin changes save in the current browser first. After adding, updating, deleting records, or importing images, use "Export backup JSON" to keep a private copy. To publish those changes for everyone, use the "Export data.js" button in admin/index.html, replace this folder's data.js with the exported file, and upload the updated data.js to GitHub.
+GitHub Pages is static by itself, but this site can use Firebase Realtime Database for automatic shared records. After Firebase is connected, admin changes save online and all devices can show the same monks and amulets. Use "Export backup JSON" after important changes so you also have a private backup copy.
+
+Automatic cloud saving:
+The site uses Firebase Realtime Database. Visitor pages read catalogue data from Firebase and admin changes save online automatically. The "Push to cloud" button in admin copies the current catalogue to Firebase, which is useful after first setup or after importing a backup.
+
+Firebase setup needed:
+1. Create a Firebase project.
+2. Add a Web App.
+3. Enable Realtime Database.
+4. Enable Email/Password Authentication.
+5. Create one admin user in Firebase Authentication.
+6. Paste Firebase config values into cloud-config.js.
+7. Set Realtime Database rules so anyone can read, but only signed-in users can write:
+
+{
+  "rules": {
+    ".read": true,
+    ".write": "auth != null"
+  }
+}
 
 Admin image import:
 Use "Import monk image" or "Import amulet image" in the admin forms. The selected image is stored inside the record so it works on GitHub Pages after exporting data.js.

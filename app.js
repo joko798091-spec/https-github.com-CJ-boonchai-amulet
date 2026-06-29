@@ -2,12 +2,20 @@
   var storageKey = "boonchaiCatalogue";
   var adminAuthKey = "boonchaiAdminUnlocked";
   var adminPasscode = "boonchai123";
+  var catalogueData = readLocalData();
+  var cloud = {
+    enabled: false,
+    ready: false,
+    ref: null,
+    auth: null,
+    lastError: ""
+  };
 
   function cloneSeed() {
     return JSON.parse(JSON.stringify(window.BOONCHAI_SEED_DATA || { monks: [], amulets: [] }));
   }
 
-  function readData() {
+  function readLocalData() {
     var seed = cloneSeed();
     try {
       var stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -20,8 +28,70 @@
     }
   }
 
+  function readData() {
+    return catalogueData;
+  }
+
   function saveData(data) {
+    catalogueData = data;
     localStorage.setItem(storageKey, JSON.stringify(data));
+    if (cloud.ready && isAdminArea() && sessionStorage.getItem(adminAuthKey) === "yes") {
+      return cloud.ref.set(data).catch(function (error) {
+        cloud.lastError = error.message || String(error);
+        alert("Cloud save failed: " + cloud.lastError);
+      });
+    }
+    return Promise.resolve();
+  }
+
+  function pushCatalogueToCloud(data) {
+    if (!cloud.ready || !cloud.ref) {
+      alert("Cloud is not ready yet. Please check Firebase setup first.");
+      return;
+    }
+    cloud.ref.set(data).then(function () {
+      alert("Catalogue pushed to cloud. Other devices will now show the same records.");
+    }).catch(function (error) {
+      cloud.lastError = error.message || String(error);
+      alert("Cloud sync failed: " + cloud.lastError);
+    });
+  }
+
+  function hasFirebaseConfig() {
+    var config = window.BOONCHAI_FIREBASE_CONFIG || {};
+    return !!(config.apiKey && config.databaseURL && config.projectId);
+  }
+
+  function initCloudSync() {
+    if (!hasFirebaseConfig() || !window.firebase) return;
+    try {
+      if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.BOONCHAI_FIREBASE_CONFIG);
+      cloud.ref = firebase.database().ref("catalogue");
+      cloud.auth = firebase.auth ? firebase.auth() : null;
+      cloud.enabled = true;
+      cloud.ready = true;
+      cloud.ref.on("value", function (snapshot) {
+        var data = snapshot.val();
+        if (!data || !Array.isArray(data.monks) || !Array.isArray(data.amulets)) return;
+        catalogueData = data;
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        renderAll();
+      }, function (error) {
+        cloud.lastError = error.message || String(error);
+      });
+    } catch (error) {
+      cloud.lastError = error.message || String(error);
+    }
+  }
+
+  function cloudStatusHtml() {
+    if (!hasFirebaseConfig()) {
+      return '<p class="helper-text">Cloud auto-sync is not connected yet. Add Firebase settings in cloud-config.js to make changes appear on every device automatically.</p>';
+    }
+    if (cloud.ready) {
+      return '<p class="helper-text">Cloud auto-sync is connected. Admin changes save online automatically.</p>';
+    }
+    return '<p class="helper-text">Cloud settings found, but connection is not ready yet. ' + escapeHtml(cloud.lastError) + '</p>';
   }
 
   function isAdminArea() {
@@ -306,18 +376,29 @@
       '<form class="admin-form login-panel" id="adminLogin">',
       '<h2>Admin Login</h2>',
       '<p class="helper-text">This admin area is separated from the visitor website. Enter your passcode to manage monks and amulets on this browser.</p>',
+      cloudStatusHtml(),
       '<label for="adminPasscode">Passcode<input id="adminPasscode" name="adminPasscode" type="password" autocomplete="current-password" placeholder="Enter passcode"></label>',
+      hasFirebaseConfig() ? '<label for="adminEmail">Firebase admin email<input id="adminEmail" name="adminEmail" type="email" autocomplete="username" placeholder="your@email.com"></label><label for="adminPassword">Firebase admin password<input id="adminPassword" name="adminPassword" type="password" autocomplete="current-password" placeholder="Firebase password"></label>' : '',
       '<p class="helper-text" id="loginMessage"></p>',
       '<div class="form-actions"><button class="primary-button" type="submit">Enter Admin</button><a class="secondary-admin-button" href="../index.html">Back to Website</a></div>',
       '</form>'
     ].join("");
     byId("adminLogin").addEventListener("submit", function (event) {
       event.preventDefault();
-      if (byId("adminPasscode").value === adminPasscode) {
+      if (byId("adminPasscode").value !== adminPasscode) {
+        byId("loginMessage").textContent = "Wrong passcode.";
+        return;
+      }
+      if (cloud.ready && cloud.auth && byId("adminEmail") && byId("adminPassword")) {
+        cloud.auth.signInWithEmailAndPassword(byId("adminEmail").value, byId("adminPassword").value).then(function () {
+          sessionStorage.setItem(adminAuthKey, "yes");
+          setupAdmin();
+        }).catch(function (error) {
+          byId("loginMessage").textContent = "Firebase login failed: " + (error.message || String(error));
+        });
+      } else {
         sessionStorage.setItem(adminAuthKey, "yes");
         setupAdmin();
-      } else {
-        byId("loginMessage").textContent = "Wrong passcode.";
       }
     });
   }
@@ -326,7 +407,7 @@
     var editingMonk = editType === "monk" ? data.monks.find(function (item) { return item.id === editId; }) : null;
     var editingAmulet = editType === "amulet" ? data.amulets.find(function (item) { return item.id === editId; }) : null;
     shell.innerHTML = [
-      '<div class="notice success"><strong>Private catalogue records</strong><p class="helper-text">New monks and amulets are recorded in this browser. Export a backup after adding records. To publish for visitors, replace data.js on GitHub with the exported data.js file.</p><button class="secondary-admin-button" id="exportData" type="button">Export data.js</button><button class="secondary-admin-button" id="exportBackup" type="button">Export backup JSON</button><label class="secondary-admin-button import-button" for="importBackup">Import backup<input id="importBackup" type="file" accept=".json,.js,application/json"></label><button class="secondary-admin-button" id="logoutAdmin" type="button">Logout</button><button class="secondary-admin-button" id="resetData" type="button">Reset sample data</button></div>',
+      '<div class="notice success"><strong>Private catalogue records</strong>' + cloudStatusHtml() + '<p class="helper-text">New monks and amulets are recorded in this browser' + (cloud.ready ? " and saved to Firebase automatically. Use Push to cloud once to copy the current catalogue online." : ".") + ' Keep exporting a backup after important changes.</p>' + (cloud.ready ? '<button class="secondary-admin-button" id="pushCloud" type="button">Push to cloud</button>' : '') + '<button class="secondary-admin-button" id="exportData" type="button">Export data.js</button><button class="secondary-admin-button" id="exportBackup" type="button">Export backup JSON</button><label class="secondary-admin-button import-button" for="importBackup">Import backup<input id="importBackup" type="file" accept=".json,.js,application/json"></label><button class="secondary-admin-button" id="logoutAdmin" type="button">Logout</button><button class="secondary-admin-button" id="resetData" type="button">Reset sample data</button></div>',
       '<div class="admin-panels">',
       monkForm(data, editingMonk),
       amuletForm(data, editingAmulet),
@@ -489,6 +570,12 @@
 
     bindAdminRecordButtons(data);
 
+    if (byId("pushCloud")) {
+      byId("pushCloud").addEventListener("click", function () {
+        pushCatalogueToCloud(data);
+      });
+    }
+
     byId("exportData").addEventListener("click", function () {
       var payload = "window.BOONCHAI_SEED_DATA = " + JSON.stringify(data, null, 2) + ";\n";
       downloadFile(payload, "data.js", "text/javascript");
@@ -516,6 +603,7 @@
 
     byId("logoutAdmin").addEventListener("click", function () {
       sessionStorage.removeItem(adminAuthKey);
+      if (cloud.auth) cloud.auth.signOut().catch(function () {});
       setupAdmin();
     });
 
@@ -649,6 +737,11 @@
   };
 
   document.addEventListener("DOMContentLoaded", function () {
+    initCloudSync();
+    renderAll();
+  });
+
+  function renderAll() {
     renderNav();
     renderHome();
     renderAmuletList();
@@ -657,5 +750,5 @@
     renderMonkDetail();
     setupCatalogueSearch();
     setupAdmin();
-  });
+  }
 })();
