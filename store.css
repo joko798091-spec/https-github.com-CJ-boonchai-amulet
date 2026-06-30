@@ -271,8 +271,10 @@
 }
 
 .admin-form {
+    align-content: flex-start;
     display: grid;
     gap: 18px;
+    grid-auto-rows: max-content;
     padding: 26px;
 }
 
@@ -284,6 +286,21 @@
     display: grid;
     gap: 16px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-form {
+    grid-column: 1 / -1;
+    gap: 12px;
+    padding: 18px;
+}
+
+.settings-form h2 {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.settings-form .helper-text {
+    margin: 0;
 }
 
 .admin-form label {
@@ -310,10 +327,32 @@
     resize: vertical;
 }
 
+.stock-control {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr);
+}
+
 .form-actions {
+    align-items: flex-start;
+    align-self: flex-start;
+    align-content: flex-start;
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
+}
+
+.form-actions .primary-button,
+.form-actions .secondary-admin-button {
+    align-self: flex-start;
+    box-sizing: border-box;
+    flex: 0 0 170px;
+    justify-content: center;
+    height: 56px;
+    max-height: 56px;
+    min-height: 46px;
+    padding: 12px 18px;
+    width: 170px;
 }
 
 .admin-panels {
@@ -723,6 +762,7 @@
     }
 
     .form-grid,
+    .stock-control,
     .detail-specs,
     .edit-manager,
     .admin-panels,
