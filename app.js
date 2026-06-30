@@ -12,7 +12,10 @@
   };
 
   function cloneSeed() {
-    return JSON.parse(JSON.stringify(window.BOONCHAI_SEED_DATA || { monks: [], amulets: [] }));
+    var seed = JSON.parse(JSON.stringify(window.BOONCHAI_SEED_DATA || { monks: [], amulets: [] }));
+    if (!seed.settings) seed.settings = {};
+    if (!seed.settings.whatsappNumber) seed.settings.whatsappNumber = "";
+    return seed;
   }
 
   function readLocalData() {
@@ -21,7 +24,8 @@
       var stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
       return {
         monks: Array.isArray(stored.monks) ? stored.monks : seed.monks,
-        amulets: Array.isArray(stored.amulets) ? stored.amulets : seed.amulets
+        amulets: Array.isArray(stored.amulets) ? stored.amulets : seed.amulets,
+        settings: stored.settings && typeof stored.settings === "object" ? stored.settings : seed.settings
       };
     } catch (error) {
       return seed;
@@ -73,6 +77,8 @@
       cloud.ref.on("value", function (snapshot) {
         var data = snapshot.val();
         if (!data || !Array.isArray(data.monks) || !Array.isArray(data.amulets)) return;
+        if (!data.settings || typeof data.settings !== "object") data.settings = {};
+        if (!data.settings.whatsappNumber) data.settings.whatsappNumber = "";
         catalogueData = data;
         localStorage.setItem(storageKey, JSON.stringify(data));
         renderAll();
@@ -208,23 +214,61 @@
     return amuletResults.concat(monkResults);
   }
 
+  function pageSearchMode() {
+    if (byId("amuletGrid")) return "amulets";
+    if (byId("monkGrid")) return "monks";
+    return "all";
+  }
+
+  function pageSearchMatches(data, query, mode) {
+    if (mode === "amulets") {
+      return data.amulets.filter(function (amulet) {
+        return itemMatches(amulet.name, query);
+      }).map(function (amulet) {
+        return {
+          href: pagePath("amulet.html") + "?id=" + encodeURIComponent(amulet.id),
+          image: cardImage(amulet),
+          title: amulet.name,
+          type: "Amulet",
+          meta: monkName(data, amulet.monkId)
+        };
+      });
+    }
+    if (mode === "monks") {
+      return data.monks.filter(function (monk) {
+        return itemMatches(monk.name, query);
+      }).map(function (monk) {
+        return {
+          href: pagePath("monk.html") + "?id=" + encodeURIComponent(monk.id),
+          image: cardImage(monk),
+          title: monk.name,
+          type: "Monk",
+          meta: text(monk.temple, "Monk profile")
+        };
+      });
+    }
+    return catalogueMatches(data, query);
+  }
+
   function setupCatalogueSearch() {
     var input = byId("catalogueSearch");
     var results = byId("searchResults");
     if (!input || !results) return;
     var data = readData();
+    var mode = pageSearchMode();
+    var itemLabel = mode === "amulets" ? "amulets" : mode === "monks" ? "monks" : "amulets and monks";
 
     function renderSearch() {
       var query = input.value.trim().toLowerCase();
       if (!query) {
-        results.innerHTML = '<p class="helper-text">Start typing to find amulets and monks by name.</p>';
+        results.innerHTML = '<p class="helper-text">Start typing to find ' + itemLabel + ' by name.</p>';
         return;
       }
 
-      var matches = catalogueMatches(data, query);
+      var matches = pageSearchMatches(data, query, mode);
       results.innerHTML = matches.length ? matches.map(function (item) {
         return '<a class="search-result-item" href="' + item.href + '"><img src="' + item.image + '" alt=""><span><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.type + " / " + item.meta) + '</small></span></a>';
-      }).join("") : '<p class="helper-text">No catalogue item found for "' + escapeHtml(input.value) + '".</p>';
+      }).join("") : '<p class="helper-text">No ' + itemLabel + ' found for "' + escapeHtml(input.value) + '".</p>';
     }
 
     input.addEventListener("input", renderSearch);
@@ -250,7 +294,7 @@
         '<p class="product-type">' + escapeHtml(text(amulet.type, "Amulet")) + '</p>',
         '<h2><a href="' + pagePath("amulet.html") + '?id=' + encodeURIComponent(amulet.id) + '">' + escapeHtml(amulet.name) + '</a></h2>',
         '<p>' + escapeHtml(text(amulet.short, "Amulet detail")) + '</p>',
-        '<div class="product-meta"><span>' + escapeHtml(monkName(data, amulet.monkId)) + '</span><strong>View</strong></div>',
+        '<div class="product-meta"><span>' + escapeHtml(monkName(data, amulet.monkId)) + '</span><strong>' + escapeHtml(stockLabel(amulet)) + '</strong></div>',
         '<a class="detail-link" href="' + pagePath("amulet.html") + '?id=' + encodeURIComponent(amulet.id) + '">View detail</a>',
         '</div>',
         '</article>'
@@ -305,12 +349,36 @@
       spec("Year", escapeHtml(text(amulet.year, "Not set"))),
       spec("Material", escapeHtml(text(amulet.material, "Not set"))),
       spec("Condition", escapeHtml(text(amulet.condition, "Not set"))),
+      spec("Stock", escapeHtml(stockLabel(amulet))),
       '</dl>',
       '<div class="detail-description"><h2>Description</h2><p>' + escapeHtml(text(amulet.detail, "No description added yet.")) + '</p></div>',
-      '<div class="detail-actions"><a class="primary-button" href="store.html">Back to Amulets</a><a class="secondary-admin-button" href="monks.html">View Monks</a></div>',
+      '<div class="detail-actions">' + whatsappButton(data, amulet) + '<a class="primary-button" href="store.html">Back to Amulets</a><a class="secondary-admin-button" href="monks.html">View Monks</a></div>',
       '</article>',
       '</section>'
     ].join("");
+  }
+
+  function stockLabel(amulet) {
+    var value = text(amulet.stock, "");
+    if (value === "out-of-stock") return "Out of stock";
+    if (!value) return "Stock not set";
+    return value + " in stock";
+  }
+
+  function cleanWhatsappNumber(value) {
+    return String(value || "").replace(/[^\d]/g, "");
+  }
+
+  function whatsappButton(data, amulet) {
+    var number = cleanWhatsappNumber(data.settings && data.settings.whatsappNumber);
+    if (!number) return "";
+    var message = [
+      "Hello BoonChai, I want to order this amulet:",
+      amulet.name,
+      "Code: " + amulet.id,
+      "Page: " + window.location.href
+    ].join("\n");
+    return '<a class="primary-button whatsapp-button" target="_blank" rel="noopener" href="https://wa.me/' + encodeURIComponent(number) + '?text=' + encodeURIComponent(message) + '">Order on WhatsApp</a>';
   }
 
   function renderMonkDetail() {
@@ -411,10 +479,25 @@
       '<div class="admin-panels">',
       monkForm(data, editingMonk),
       amuletForm(data, editingAmulet),
+      settingsForm(data),
       '</div>',
       '<section class="stored-list admin-list"><div class="stored-list-heading"><h2>Current Catalogue</h2><span>' + data.monks.length + ' monks / ' + data.amulets.length + ' amulets</span></div><div class="admin-record-search"><label for="adminCatalogueSearch">Search catalogue</label><input id="adminCatalogueSearch" type="search" placeholder="Type amulet or monk name"></div><div class="admin-current-grid" id="adminCurrentGrid">' + currentItems(data) + '</div></section>'
     ].join("");
     bindAdmin(data, editingMonk, editingAmulet);
+  }
+
+  function settingsForm(data) {
+    var settings = data.settings || {};
+    return [
+      '<form class="admin-form settings-form" id="settingsForm">',
+      '<h2>Website Settings</h2>',
+      '<div class="form-grid">',
+      input("whatsappNumber", "WhatsApp order number", "60123456789", settings.whatsappNumber),
+      '</div>',
+      '<p class="helper-text">Use country code without +, spaces, or dashes. Example: 60123456789.</p>',
+      '<div class="form-actions"><button class="primary-button" type="submit">Save Settings</button></div>',
+      '</form>'
+    ].join("");
   }
 
   function monkForm(data, editingMonk) {
@@ -450,6 +533,7 @@
       input("amuletYear", "Year", "BE 2500", amulet.year),
       input("amuletMaterial", "Material", "Sacred powder", amulet.material),
       input("amuletCondition", "Condition", "Good", amulet.condition),
+      stockControl(amulet),
       input("amuletImage", "Image path or URL", "image/amulets/photo.webp", amulet.image),
       imageImport("amuletImageFile", "Import amulet image"),
       input("amuletShort", "Short detail", "A collectible amulet with temple history", amulet.short),
@@ -462,6 +546,19 @@
 
   function input(id, label, placeholder, value) {
     return '<label for="' + id + '">' + label + '<input id="' + id + '" name="' + id + '" placeholder="' + escapeHtml(placeholder) + '" value="' + escapeHtml(value || "") + '"></label>';
+  }
+
+  function stockControl(amulet) {
+    var isOut = amulet.stock === "out-of-stock";
+    return [
+      '<div class="stock-control">',
+      '<label for="amuletStock">Stock amount<input id="amuletStock" name="amuletStock" type="number" min="0" step="1" placeholder="1" value="' + escapeHtml(isOut ? "" : amulet.stock || "") + '"></label>',
+      '<label for="amuletStockStatus">Stock status<select id="amuletStockStatus" name="amuletStockStatus">',
+      '<option value="in-stock"' + (isOut ? "" : " selected") + '>In stock</option>',
+      '<option value="out-of-stock"' + (isOut ? " selected" : "") + '>Out of stock</option>',
+      '</select></label>',
+      '</div>'
+    ].join("");
   }
 
   function textarea(id, label, value) {
@@ -511,6 +608,14 @@
     bindImageImport("amuletImageFile", "amuletImage");
     setupAdminSearch(data);
 
+    byId("settingsForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      data.settings = data.settings || {};
+      data.settings.whatsappNumber = cleanWhatsappNumber(byId("whatsappNumber").value);
+      saveData(data);
+      renderAdmin(byId("adminShell"), data, null, null);
+    });
+
     byId("monkForm").addEventListener("submit", function (event) {
       event.preventDefault();
       var name = text(byId("monkName").value, "New Monk");
@@ -547,6 +652,7 @@
         year: byId("amuletYear").value,
         material: byId("amuletMaterial").value,
         condition: byId("amuletCondition").value,
+        stock: byId("amuletStockStatus").value === "out-of-stock" ? "out-of-stock" : byId("amuletStock").value,
         image: text(byId("amuletImage").value, "image/logo.png"),
         short: byId("amuletShort").value,
         detail: byId("amuletDetail").value
