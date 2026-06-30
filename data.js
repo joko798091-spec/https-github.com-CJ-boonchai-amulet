@@ -1,4 +1,7 @@
 window.BOONCHAI_SEED_DATA = {
+  settings: {
+    whatsappNumber: ""
+  },
   monks: [
     {
       id: "luang-phor-koon",
@@ -41,6 +44,7 @@ window.BOONCHAI_SEED_DATA = {
       year: "BE 2536",
       material: "Sacred powder and herbs",
       condition: "Good collector condition",
+      stock: "1",
       image: "image/amulets/phra-pitda-1782432638.webp",
       short: "Protective amulet style with closed-eyes form, presented with monk and temple detail.",
       detail: "Phra Pitda is a popular Thai amulet form often collected for protection, metta, and spiritual confidence. This listing keeps the monk connection, temple, material, year, and condition together for easier review."
@@ -54,6 +58,7 @@ window.BOONCHAI_SEED_DATA = {
       year: "BE 2505 style",
       material: "Bronze tone metal",
       condition: "Reference display piece",
+      stock: "1",
       image: "image/LuangPhorThuad.png",
       short: "A Luang Phor Thuad reference listing for travel protection collectors.",
       detail: "This medallion-style listing demonstrates how the public detail page connects an amulet to the monk profile. Replace the image and details with your real item when ready."
@@ -67,6 +72,7 @@ window.BOONCHAI_SEED_DATA = {
       year: "Collector reference",
       material: "Metal image",
       condition: "Display reference",
+      stock: "1",
       image: "image/LuangPhorNgern.png",
       short: "A prosperity-focused reference item linked to Luang Phor Ngern.",
       detail: "This sample item shows a larger bucha-style monk image entry. The admin page can replace it with actual amulet data, including image path, material, condition, and story."
